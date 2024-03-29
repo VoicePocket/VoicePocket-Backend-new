@@ -95,6 +95,6 @@ public class SignService {
 
         // AccessToken, RefreshToken 토큰 재발급, 리프레쉬 토큰 저장
         return jwtProvider.reissueAccessToken(user.getId(), user.getRole().toString(),
-            refreshToken);
+            refreshToken, 0L);
     }
 }

@@ -2,10 +2,10 @@ package com.vp.voicepocket.domain.token.config;
 
 import com.vp.voicepocket.domain.token.dto.TokenDto;
 import com.vp.voicepocket.domain.token.exception.CAuthenticationEntryPointException;
-import com.vp.voicepocket.domain.token.exception.CExpiredAccessTokenException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Header;
+import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -34,11 +34,14 @@ public class JwtProvider {
     private final String issuer;
     private final UserDetailsService userDetailsService;
 
+    private final JwtParser jwtParser;
+
     public JwtProvider(@Value("${spring.jwt.secret}") String secretKey,
         @Value("${spring.jwt.issuer}") String issuer, UserDetailsService userDetailsService) {
         this.secretKey = TextCodec.BASE64URL.encode(secretKey.getBytes(StandardCharsets.UTF_8));
         this.issuer = issuer;
         this.userDetailsService = userDetailsService;
+        this.jwtParser = Jwts.parser().setSigningKey(secretKey);
     }
 
     // Generate Access, Refresh Token
@@ -60,15 +63,26 @@ public class JwtProvider {
     }
 
     // reissue
-    // TODO: refreshTokenExpiryDate Calculate How?
-    public TokenDto reissueAccessToken(Long userId, String role, String refreshToken) {
+    public TokenDto reissueAccessToken(Long userId, String role, String refreshToken, Long refreshTokenExpiryDate) {
         Date now = new Date();
         var accessToken = generateAccessToken(userId, role, now);
         return TokenDto.builder()
             .accessToken(accessToken)
             .refreshToken(refreshToken)
-            .refreshTokenExpiryDate(0L)
+            .refreshTokenExpiryDate(refreshTokenExpiryDate)
             .build();
+    }
+
+    public Claims parseAccessToken(String accessToken) {
+        return jwtParser.parseClaimsJws(accessToken).getBody();
+    }
+
+    public Claims parseAccessTokenWithOutExpiration(String accessToken) {
+        try {
+            return Jwts.parser().setSigningKey(secretKey).parseClaimsJws(accessToken).getBody();
+        } catch (ExpiredJwtException e) {
+            return e.getClaims();
+        }
     }
 
     // Jwt 토큰 복호화해서 가져오기
@@ -98,6 +112,7 @@ public class JwtProvider {
     }
 
     // jwt 의 유효성 및 만료 일자 확인
+    @Deprecated(forRemoval = true)
     public boolean validationToken(String token) {
         try {
             Jwts.parser().setSigningKey(secretKey).parseClaimsJws(token);
@@ -114,22 +129,12 @@ public class JwtProvider {
         return false;
     }
 
+    private Date calculateAccessTokenExpiryDate(Date now) {
+        return new Date(now.getTime() + ACCESS_TOKEN_VALID_MILLISECOND);
+    }
 
-    public Authentication validateAndGetAuthentication(String token) {
-        Claims claims = Jwts
-            .parser()
-            .setSigningKey(secretKey)
-            .parseClaimsJws(token)
-            .getBody();
-        if (claims.getExpiration().before(new Date())) {
-            throw new CExpiredAccessTokenException();
-        }
-        if (claims.get(ROLE) == null) {
-            throw new CAuthenticationEntryPointException();
-        }
-        UserDetails userDetails = userDetailsService.loadUserByUsername(claims.getSubject());
-        return new UsernamePasswordAuthenticationToken(userDetails, "",
-            userDetails.getAuthorities());
+    private Date calculateRefreshTokenExpiryDate(Date now) {
+        return new Date(now.getTime() + REFRESH_TOKEN_VALID_MILLISECOND);
     }
 
     private String generateAccessToken(Long userId, String role, Date now) {
@@ -142,13 +147,5 @@ public class JwtProvider {
         return Jwts.builder().setHeaderParam(Header.TYPE, Header.JWT_TYPE).setClaims(claims)
             .setIssuedAt(now).setIssuer(issuer).setExpiration(calculateAccessTokenExpiryDate(now))
             .signWith(SignatureAlgorithm.HS256, secretKey).compact();
-    }
-
-    private Date calculateAccessTokenExpiryDate(Date now) {
-        return new Date(now.getTime() + ACCESS_TOKEN_VALID_MILLISECOND);
-    }
-
-    private Date calculateRefreshTokenExpiryDate(Date now) {
-        return new Date(now.getTime() + REFRESH_TOKEN_VALID_MILLISECOND);
     }
 }
