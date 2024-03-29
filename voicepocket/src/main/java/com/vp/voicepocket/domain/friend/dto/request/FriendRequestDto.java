@@ -1,20 +1,17 @@
 package com.vp.voicepocket.domain.friend.dto.request;
 
-import com.vp.voicepocket.domain.friend.entity.Friend;
-import com.vp.voicepocket.domain.friend.entity.Status;
-import com.vp.voicepocket.domain.user.entity.User;
+import com.vp.voicepocket.domain.user.entity.vo.Email;
 import lombok.AllArgsConstructor;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-
-@Getter
 @AllArgsConstructor
 @NoArgsConstructor
 public class FriendRequestDto {
+
+    @javax.validation.constraints.Email
     private String email;
 
-    public Friend toEntity(User request_from, User request_to, Status status) {
-        return Friend.builder().request_from(request_from).request_to(request_to).status(status).build();
+    public String getEmail(){
+        return Email.from(email).getValue();
     }
 }
