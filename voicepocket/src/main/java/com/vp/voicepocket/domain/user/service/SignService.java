@@ -35,9 +35,9 @@ public class SignService {
 
     @Transactional
     public Long signup(UserSignupRequestDto userSignupRequestDto) {
-        if (userRepository.findByEmail(userSignupRequestDto.getEmail()).isPresent()) {
+        userRepository.findByEmail(userSignupRequestDto.getEmail()).ifPresent(user -> {
             throw new CEmailSignUpFailedException();
-        }
+        });
         return userRepository.save(userSignupRequestDto.toEntity(passwordEncoder)).getId();
     }
 
