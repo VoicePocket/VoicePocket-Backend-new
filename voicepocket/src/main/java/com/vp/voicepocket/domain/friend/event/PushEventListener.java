@@ -8,6 +8,7 @@ import com.vp.voicepocket.domain.firebase.entity.FCMUserToken;
 import com.vp.voicepocket.domain.firebase.exception.CFCMTokenNotFoundException;
 import com.vp.voicepocket.domain.firebase.repository.FCMRepository;
 import com.vp.voicepocket.domain.user.entity.User;
+import java.util.HashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -16,8 +17,6 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
-
-import java.util.HashMap;
 
 @Slf4j
 @Component
@@ -30,8 +29,8 @@ public class PushEventListener {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void sendFriendRequestPushMessage(FriendRequestPushEvent friendRequestPushEvent) {
-        User toUser = friendRequestPushEvent.getFriend().getRequest_to();
-        User fromUser = friendRequestPushEvent.getFriend().getRequest_from();
+        User toUser = friendRequestPushEvent.getFriend().getRequestTo();
+        User fromUser = friendRequestPushEvent.getFriend().getRequestFrom();
 
         FCMUserToken fcmEntity = fcmRepository.findByUserId(toUser)
             .orElseThrow(CFCMTokenNotFoundException::new);
@@ -49,8 +48,8 @@ public class PushEventListener {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void sendFriendAcceptPushMessage(FriendAcceptPushEvent friendAcceptPushEvent) {
-        User toUser = friendAcceptPushEvent.getFriend().getRequest_to();
-        User fromUser = friendAcceptPushEvent.getFriend().getRequest_from();
+        User toUser = friendAcceptPushEvent.getFriend().getRequestTo();
+        User fromUser = friendAcceptPushEvent.getFriend().getRequestFrom();
 
         FCMUserToken fcmEntity = fcmRepository.findByUserId(fromUser)
             .orElseThrow(CFCMTokenNotFoundException::new);
