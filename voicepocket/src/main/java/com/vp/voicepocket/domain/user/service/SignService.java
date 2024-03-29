@@ -42,37 +42,30 @@ public class SignService {
     }
 
     @Transactional
-    public TokenDto login(String fcmToken, UserLoginRequestDto userLoginRequestDto) {
+    public TokenDto login(UserLoginRequestDto userLoginRequestDto) {
         // 회원이 존재하는지 확인
-        User user =
-            userRepository
-                .findByEmail(userLoginRequestDto.getEmail())
-                .orElseThrow(CEmailLoginFailedException::new);
+        User user = userRepository.findByEmail(userLoginRequestDto.getEmail())
+            .orElseThrow(CEmailLoginFailedException::new);
 
         // password 일치 여부 확인
-        if (!passwordEncoder.matches(userLoginRequestDto.getPassword(), user.getPassword())) {
-            throw new CEmailLoginFailedException();
-        }
+        user.verifyPassword(passwordEncoder, userLoginRequestDto.getPassword());
 
         // token 발급
         TokenDto tokenDto = jwtProvider.generateTokens(user.getId(), user.getRole().toString());
 
-        if (refreshTokenRepository.findById(user.getId()).isPresent()) {
-            RefreshToken refreshToken = refreshTokenRepository.findById(user.getId()).get();
-            refreshToken.updateToken(tokenDto.getRefreshToken(),
-                tokenDto.getRefreshTokenExpiryDate());
-        } else {
-            refreshTokenRepository.save(tokenDto.toEntity(user));
-        }
+        // RefreshToken 관리
+        refreshTokenRepository.findById(user.getId()).ifPresentOrElse(
+            refreshToken -> refreshToken.updateToken(tokenDto.getRefreshToken(),
+                tokenDto.getRefreshTokenExpiryDate()),
+            () -> refreshTokenRepository.save(
+                RefreshToken.builder().id(user.getId()).refreshToken(tokenDto.getRefreshToken())
+                    .expiryDate(tokenDto.getRefreshTokenExpiryDate()).build()));
 
-        // FCM TOKEN ADD or UPDATE
-        if (fcmRepository.findByUserId(user).isEmpty()) {
-            fcmRepository.save(FCMUserToken.builder().userId(user).FireBaseToken(fcmToken).build());
-        } else {
-
-            fcmRepository.findByUserId(user).orElseThrow().update(fcmToken);
-        }
-
+        // FCM TOKEN 관리
+        fcmRepository.findByUserId(user).ifPresentOrElse(
+            fcmUserToken -> fcmUserToken.update(userLoginRequestDto.getFcmToken()),
+            () -> fcmRepository.save(FCMUserToken.builder().userId(user).FireBaseToken(
+                userLoginRequestDto.getFcmToken()).build()));
         return tokenDto;
     }
 

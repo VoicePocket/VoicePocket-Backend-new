@@ -1,7 +1,5 @@
 package com.vp.voicepocket.domain.token.dto;
 
-import com.vp.voicepocket.domain.token.entity.RefreshToken;
-import com.vp.voicepocket.domain.user.entity.User;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -21,12 +19,4 @@ public class TokenDto {
         this.refreshTokenExpiryDate = refreshTokenExpiryDate;
     }
 
-    // TODO: ??
-    public RefreshToken toEntity(User user) {
-        return RefreshToken.builder()
-            .id(user.getId())
-            .refreshToken(refreshToken)
-            .expiryDate(refreshTokenExpiryDate)
-            .build();
-    }
 }
