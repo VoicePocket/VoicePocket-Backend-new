@@ -3,9 +3,18 @@ package com.vp.voicepocket.domain.token.config;
 import com.vp.voicepocket.domain.token.dto.TokenDto;
 import com.vp.voicepocket.domain.token.exception.CAuthenticationEntryPointException;
 import com.vp.voicepocket.domain.token.exception.CExpiredAccessTokenException;
-import io.jsonwebtoken.*;
-import io.jsonwebtoken.impl.Base64UrlCodec;
-import lombok.RequiredArgsConstructor;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Header;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.impl.TextCodec;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.List;
+import javax.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -14,58 +23,53 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
-import javax.servlet.http.HttpServletRequest;
-import java.nio.charset.StandardCharsets;
-import java.util.Date;
-import java.util.List;
-
 @Slf4j
-@RequiredArgsConstructor
 @Component
 public class JwtProvider {
-    @Value("spring.jwt.secret")
-    private String secretKey;
 
-    private final String ROLES = "roles";
-    private final Long accessTokenValidMillisecond = 60 * 60 * 1000L; // 1 hour
-    private final Long refreshTokenValidMillisecond = 14 * 24 * 60 * 60 * 1000L; // 14 day
+    private static final String ROLES = "roles";
+    private static final Long ACCESS_TOKEN_VALID_MILLISECOND = 60 * 60 * 1000L; // 1 hour
+    private static final Long REFRESH_TOKEN_VALID_MILLISECOND = 14 * 24 * 60 * 60 * 1000L; // 14 day
+
+    private final String secretKey;
     private final UserDetailsService userDetailsService;
 
-    @PostConstruct
-    protected void init() {
-        secretKey = Base64UrlCodec.BASE64URL.encode(secretKey.getBytes(StandardCharsets.UTF_8));
+    public JwtProvider(@Value("${spring.jwt.secret}") String secretKey,
+        UserDetailsService userDetailsService) {
+        this.secretKey = TextCodec.BASE64URL.encode(secretKey.getBytes(StandardCharsets.UTF_8));
+        this.userDetailsService = userDetailsService;
     }
 
     // Jwt 생성
     public TokenDto createTokenDto(Long userPk, List<String> roles, String userEmail) {
-        Claims claims = Jwts.claims().setSubject(String.valueOf(userPk));   // 회원을 구분할 수 있는 값으로 userPk 값을 사용
+        Claims claims = Jwts.claims()
+            .setSubject(String.valueOf(userPk));   // 회원을 구분할 수 있는 값으로 userPk 값을 사용
         claims.put(ROLES, roles);
 
         Date now = new Date();
 
         String accessToken =
-                Jwts.builder()
-                        .setHeaderParam(Header.TYPE, Header.JWT_TYPE)
-                        .setClaims(claims)
-                        .setIssuedAt(now)
-                        .setExpiration(new Date(now.getTime() + accessTokenValidMillisecond))
-                        .signWith(SignatureAlgorithm.HS256, secretKey)
-                        .compact();
+            Jwts.builder()
+                .setHeaderParam(Header.TYPE, Header.JWT_TYPE)
+                .setClaims(claims)
+                .setIssuedAt(now)
+                .setExpiration(new Date(now.getTime() + ACCESS_TOKEN_VALID_MILLISECOND))
+                .signWith(SignatureAlgorithm.HS256, secretKey)
+                .compact();
 
         String refreshToken =
-                Jwts.builder()
-                        .setHeaderParam(Header.TYPE, Header.JWT_TYPE)
-                        .setExpiration(new Date(now.getTime() + refreshTokenValidMillisecond))
-                        .signWith(SignatureAlgorithm.HS256, secretKey)
-                        .compact();
+            Jwts.builder()
+                .setHeaderParam(Header.TYPE, Header.JWT_TYPE)
+                .setExpiration(new Date(now.getTime() + REFRESH_TOKEN_VALID_MILLISECOND))
+                .signWith(SignatureAlgorithm.HS256, secretKey)
+                .compact();
 
         return TokenDto.builder()
-                .grantType("Bearer")
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .accessTokenExpireDate(accessTokenValidMillisecond)
-                .build();
+            .grantType("Bearer")
+            .accessToken(accessToken)
+            .refreshToken(refreshToken)
+            .accessTokenExpireDate(ACCESS_TOKEN_VALID_MILLISECOND)
+            .build();
     }
 
     public TokenDto updateAccessTokenDto(Long userPk, List<String> roles, String refreshToken) {
@@ -75,20 +79,20 @@ public class JwtProvider {
         Date now = new Date();
 
         String accessToken =
-                Jwts.builder()
-                        .setHeaderParam(Header.TYPE, Header.JWT_TYPE)
-                        .setClaims(claims)
-                        .setIssuedAt(now)
-                        .setExpiration(new Date(now.getTime() + accessTokenValidMillisecond))
-                        .signWith(SignatureAlgorithm.HS256, secretKey)
-                        .compact();
+            Jwts.builder()
+                .setHeaderParam(Header.TYPE, Header.JWT_TYPE)
+                .setClaims(claims)
+                .setIssuedAt(now)
+                .setExpiration(new Date(now.getTime() + ACCESS_TOKEN_VALID_MILLISECOND))
+                .signWith(SignatureAlgorithm.HS256, secretKey)
+                .compact();
 
         return TokenDto.builder()
-                .grantType("Bearer")
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .accessTokenExpireDate(accessTokenValidMillisecond)
-                .build();
+            .grantType("Bearer")
+            .accessToken(accessToken)
+            .refreshToken(refreshToken)
+            .accessTokenExpireDate(ACCESS_TOKEN_VALID_MILLISECOND)
+            .build();
     }
 
     // Jwt 토큰 복호화해서 가져오기
@@ -112,7 +116,8 @@ public class JwtProvider {
         }
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(claims.getSubject());
-        return new UsernamePasswordAuthenticationToken(userDetails, "", userDetails.getAuthorities());
+        return new UsernamePasswordAuthenticationToken(userDetails, "",
+            userDetails.getAuthorities());
     }
 
     // HTTP Request 의 Header 에서 Token Parsing -> "X-AUTH-TOKEN: jwt"
@@ -140,17 +145,18 @@ public class JwtProvider {
 
     public Authentication validateAndGetAuthentication(String token) {
         Claims claims = Jwts
-                .parser()
-                .setSigningKey(secretKey)
-                .parseClaimsJws(token)
-                .getBody();
-        if (claims.getExpiration().before(new Date())){
+            .parser()
+            .setSigningKey(secretKey)
+            .parseClaimsJws(token)
+            .getBody();
+        if (claims.getExpiration().before(new Date())) {
             throw new CExpiredAccessTokenException();
         }
         if (claims.get(ROLES) == null) {
             throw new CAuthenticationEntryPointException();
         }
         UserDetails userDetails = userDetailsService.loadUserByUsername(claims.getSubject());
-        return new UsernamePasswordAuthenticationToken(userDetails, "", userDetails.getAuthorities());
+        return new UsernamePasswordAuthenticationToken(userDetails, "",
+            userDetails.getAuthorities());
     }
 }
