@@ -14,7 +14,6 @@ import io.jsonwebtoken.impl.TextCodec;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
-import javax.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -118,11 +117,6 @@ public class JwtProvider {
         UserDetails userDetails = userDetailsService.loadUserByUsername(claims.getSubject());
         return new UsernamePasswordAuthenticationToken(userDetails, "",
             userDetails.getAuthorities());
-    }
-
-    // HTTP Request 의 Header 에서 Token Parsing -> "X-AUTH-TOKEN: jwt"
-    public String resolveToken(HttpServletRequest request) {
-        return request.getHeader("X-AUTH-TOKEN");
     }
 
     // jwt 의 유효성 및 만료 일자 확인
