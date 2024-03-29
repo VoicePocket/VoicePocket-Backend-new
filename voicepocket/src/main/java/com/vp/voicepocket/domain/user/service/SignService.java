@@ -16,7 +16,6 @@ import com.vp.voicepocket.domain.user.exception.CEmailLoginFailedException;
 import com.vp.voicepocket.domain.user.exception.CEmailSignUpFailedException;
 import com.vp.voicepocket.domain.user.exception.CUserNotFoundException;
 import com.vp.voicepocket.domain.user.repository.UserRepository;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -56,8 +55,7 @@ public class SignService {
         }
 
         // token 발급
-        TokenDto tokenDto = jwtProvider.createTokenDto(user.getId(),
-            List.of(user.getRole().toString()), user.getEmail());
+        TokenDto tokenDto = jwtProvider.generateTokens(user.getId(), user.getRole().toString());
 
         if (refreshTokenRepository.findByKey(user.getId()).isPresent()) {
             RefreshToken refreshToken = refreshTokenRepository.findByKey(user.getId()).get();
@@ -96,7 +94,7 @@ public class SignService {
                 .orElseThrow(CUserNotFoundException::new);
 
         // AccessToken, RefreshToken 토큰 재발급, 리프레쉬 토큰 저장
-        return jwtProvider.updateAccessTokenDto(user.getId(), List.of(user.getRole().toString()),
+        return jwtProvider.reissueAccessToken(user.getId(), user.getRole().toString(),
             refreshToken);
     }
 }

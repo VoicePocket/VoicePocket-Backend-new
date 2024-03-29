@@ -13,7 +13,7 @@ import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.impl.TextCodec;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
-import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -26,71 +26,48 @@ import org.springframework.stereotype.Component;
 @Component
 public class JwtProvider {
 
-    private static final String ROLES = "roles";
+    private static final String ROLE = "role";
     private static final Long ACCESS_TOKEN_VALID_MILLISECOND = 60 * 60 * 1000L; // 1 hour
     private static final Long REFRESH_TOKEN_VALID_MILLISECOND = 14 * 24 * 60 * 60 * 1000L; // 14 day
 
     private final String secretKey;
+    private final String issuer;
     private final UserDetailsService userDetailsService;
 
     public JwtProvider(@Value("${spring.jwt.secret}") String secretKey,
-        UserDetailsService userDetailsService) {
+        @Value("${spring.jwt.issuer}") String issuer, UserDetailsService userDetailsService) {
         this.secretKey = TextCodec.BASE64URL.encode(secretKey.getBytes(StandardCharsets.UTF_8));
+        this.issuer = issuer;
         this.userDetailsService = userDetailsService;
     }
 
-    // Jwt 생성
-    public TokenDto createTokenDto(Long userPk, List<String> roles, String userEmail) {
-        Claims claims = Jwts.claims()
-            .setSubject(String.valueOf(userPk));   // 회원을 구분할 수 있는 값으로 userPk 값을 사용
-        claims.put(ROLES, roles);
-
+    // Generate Access, Refresh Token
+    public TokenDto generateTokens(Long userId, String role) {
         Date now = new Date();
-
-        String accessToken =
-            Jwts.builder()
-                .setHeaderParam(Header.TYPE, Header.JWT_TYPE)
-                .setClaims(claims)
-                .setIssuedAt(now)
-                .setExpiration(new Date(now.getTime() + ACCESS_TOKEN_VALID_MILLISECOND))
-                .signWith(SignatureAlgorithm.HS256, secretKey)
-                .compact();
-
-        String refreshToken =
-            Jwts.builder()
-                .setHeaderParam(Header.TYPE, Header.JWT_TYPE)
-                .setExpiration(new Date(now.getTime() + REFRESH_TOKEN_VALID_MILLISECOND))
-                .signWith(SignatureAlgorithm.HS256, secretKey)
-                .compact();
+        var accessToken = generateAccessToken(userId, role, now);
+        var refreshTokenExpiryDate = calculateRefreshTokenExpiryDate(now);
+        var refreshToken = Jwts.builder()
+            .setHeaderParam(Header.TYPE, Header.JWT_TYPE)
+            .setExpiration(refreshTokenExpiryDate)
+            .signWith(SignatureAlgorithm.HS256, secretKey)
+            .compact();
 
         return TokenDto.builder()
-            .grantType("Bearer")
             .accessToken(accessToken)
             .refreshToken(refreshToken)
-            .accessTokenExpireDate(ACCESS_TOKEN_VALID_MILLISECOND)
+            .refreshTokenExpiryDate(refreshTokenExpiryDate.getTime())
             .build();
     }
 
-    public TokenDto updateAccessTokenDto(Long userPk, List<String> roles, String refreshToken) {
-        Claims claims = Jwts.claims().setSubject(String.valueOf(userPk));
-        claims.put(ROLES, roles);
-
+    // reissue
+    // TODO: refreshTokenExpiryDate Calculate How?
+    public TokenDto reissueAccessToken(Long userId, String role, String refreshToken) {
         Date now = new Date();
-
-        String accessToken =
-            Jwts.builder()
-                .setHeaderParam(Header.TYPE, Header.JWT_TYPE)
-                .setClaims(claims)
-                .setIssuedAt(now)
-                .setExpiration(new Date(now.getTime() + ACCESS_TOKEN_VALID_MILLISECOND))
-                .signWith(SignatureAlgorithm.HS256, secretKey)
-                .compact();
-
+        var accessToken = generateAccessToken(userId, role, now);
         return TokenDto.builder()
-            .grantType("Bearer")
             .accessToken(accessToken)
             .refreshToken(refreshToken)
-            .accessTokenExpireDate(ACCESS_TOKEN_VALID_MILLISECOND)
+            .refreshTokenExpiryDate(0L)
             .build();
     }
 
@@ -104,13 +81,14 @@ public class JwtProvider {
     }
 
     // Jwt 로 인증정보를 조회
+    @Deprecated(forRemoval = true)
     public Authentication getAuthentication(String token) {
 
         // Jwt 에서 claims 추출
         Claims claims = parseClaims(token);
 
         // 권한 정보가 없음
-        if (claims.get(ROLES) == null) {
+        if (claims.get(ROLE) == null) {
             throw new CAuthenticationEntryPointException();
         }
 
@@ -146,11 +124,31 @@ public class JwtProvider {
         if (claims.getExpiration().before(new Date())) {
             throw new CExpiredAccessTokenException();
         }
-        if (claims.get(ROLES) == null) {
+        if (claims.get(ROLE) == null) {
             throw new CAuthenticationEntryPointException();
         }
         UserDetails userDetails = userDetailsService.loadUserByUsername(claims.getSubject());
         return new UsernamePasswordAuthenticationToken(userDetails, "",
             userDetails.getAuthorities());
+    }
+
+    private String generateAccessToken(Long userId, String role, Date now) {
+        var claims = Jwts.claims(
+            Map.of(
+                Claims.SUBJECT, userId,
+                ROLE, role
+            )
+        );
+        return Jwts.builder().setHeaderParam(Header.TYPE, Header.JWT_TYPE).setClaims(claims)
+            .setIssuedAt(now).setIssuer(issuer).setExpiration(calculateAccessTokenExpiryDate(now))
+            .signWith(SignatureAlgorithm.HS256, secretKey).compact();
+    }
+
+    private Date calculateAccessTokenExpiryDate(Date now) {
+        return new Date(now.getTime() + ACCESS_TOKEN_VALID_MILLISECOND);
+    }
+
+    private Date calculateRefreshTokenExpiryDate(Date now) {
+        return new Date(now.getTime() + REFRESH_TOKEN_VALID_MILLISECOND);
     }
 }
