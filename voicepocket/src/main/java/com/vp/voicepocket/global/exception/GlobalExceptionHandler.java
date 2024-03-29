@@ -3,13 +3,18 @@ package com.vp.voicepocket.global.exception;
 import com.vp.voicepocket.domain.firebase.exception.CFCMTokenNotFoundException;
 import com.vp.voicepocket.domain.friend.exception.CFriendRequestNotExistException;
 import com.vp.voicepocket.domain.friend.exception.CFriendRequestOnGoingException;
-import com.vp.voicepocket.domain.token.exception.*;
+import com.vp.voicepocket.domain.token.exception.CAccessDeniedException;
+import com.vp.voicepocket.domain.token.exception.CAccessTokenException;
+import com.vp.voicepocket.domain.token.exception.CAuthenticationEntryPointException;
+import com.vp.voicepocket.domain.token.exception.CExpiredAccessTokenException;
+import com.vp.voicepocket.domain.token.exception.CRefreshTokenException;
 import com.vp.voicepocket.domain.user.exception.CEmailLoginFailedException;
 import com.vp.voicepocket.domain.user.exception.CEmailSignUpFailedException;
 import com.vp.voicepocket.domain.user.exception.CUserNotFoundException;
+import com.vp.voicepocket.global.common.response.ResponseFactory;
 import com.vp.voicepocket.global.common.response.model.CommonResult;
-import com.vp.voicepocket.global.common.response.service.ResponseService;
 import io.jsonwebtoken.MalformedJwtException;
+import javax.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -18,12 +23,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import javax.servlet.http.HttpServletRequest;
-
 @RestControllerAdvice
 @RequiredArgsConstructor
 public class GlobalExceptionHandler {
-    private final ResponseService responseService;
     private final MessageSource messageSource;
 
     private String getMessage(String code) {
@@ -40,9 +42,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     protected CommonResult defaultException(HttpServletRequest request, Exception e) {
-        return responseService.getFailResult
+        return ResponseFactory.createFailResult(
         //        (Integer.parseInt(getMessage("unKnown.code")), getMessage("unKnown.msg"));
-                (Integer.parseInt(getMessage("unKnown.code")), e.getMessage());
+                (Integer.parseInt(getMessage("unKnown.code"))), e.getMessage());
     }
 
     /***
@@ -53,7 +55,7 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     protected CommonResult userNotFoundException(
             HttpServletRequest request, CUserNotFoundException e) {
-        return responseService.getFailResult(
+        return ResponseFactory.createFailResult(
                 Integer.parseInt(getMessage("userNotFound.code")), getMessage("userNotFound.msg"));
     }
 
@@ -64,7 +66,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CEmailLoginFailedException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     protected CommonResult emailLoginFailedException(HttpServletRequest request, CEmailLoginFailedException e) {
-        return responseService.getFailResult(
+        return ResponseFactory.createFailResult(
                 Integer.parseInt(getMessage("emailLoginFailed.code")), getMessage("emailLoginFailed.msg")
         );
     }
@@ -76,7 +78,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CEmailSignUpFailedException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     protected CommonResult emailSignupFailedException(HttpServletRequest request, CEmailSignUpFailedException e) {
-        return responseService.getFailResult(
+        return ResponseFactory.createFailResult(
                 Integer.parseInt(getMessage("emailSignupFailed.code")), getMessage("emailSignupFailed.msg")
         );
     }
@@ -86,7 +88,7 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     protected CommonResult authenticationEntrypointException(
             HttpServletRequest request, CAuthenticationEntryPointException e) {
-        return responseService.getFailResult(
+        return ResponseFactory.createFailResult(
                 Integer.parseInt(getMessage("authenticationEntrypoint.code")),
                 getMessage("authenticationEntrypoint.msg"));
     }
@@ -98,7 +100,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CAccessDeniedException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     protected CommonResult accessDeniedException(HttpServletRequest request, CAccessDeniedException e) {
-        return responseService.getFailResult(
+        return ResponseFactory.createFailResult(
                 Integer.parseInt(getMessage("accessDenied.code")), getMessage("accessDenied.msg")
         );
     }
@@ -110,7 +112,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CRefreshTokenException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     protected CommonResult refreshTokenException(HttpServletRequest request, CRefreshTokenException e) {
-        return responseService.getFailResult(
+        return ResponseFactory.createFailResult(
                 Integer.parseInt(getMessage("refreshTokenInValid.code")), getMessage("refreshTokenInValid.msg")
         );
     }
@@ -122,7 +124,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CExpiredAccessTokenException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     protected CommonResult expiredAccessTokenException(HttpServletRequest request, CExpiredAccessTokenException e) {
-        return responseService.getFailResult(
+        return ResponseFactory.createFailResult(
                 Integer.parseInt(getMessage("expiredAccessToken.code")), getMessage("expiredAccessToken.msg")
         );
     }
@@ -134,7 +136,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CAccessTokenException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     protected CommonResult accessTokenException(HttpServletRequest request, CAccessTokenException e) {
-        return responseService.getFailResult(
+        return ResponseFactory.createFailResult(
                 Integer.parseInt(getMessage("accessTokenInValid.code")), getMessage("accessTokenInValid.msg")
         );
     }
@@ -142,7 +144,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MalformedJwtException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     protected CommonResult malformedJwtException(HttpServletRequest request, MalformedJwtException e){
-        return responseService.getFailResult(
+        return ResponseFactory.createFailResult(
                 Integer.parseInt(getMessage("malformedToken.code")), getMessage("malformedToken.msg")
         );
     }
@@ -154,7 +156,7 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     protected CommonResult friendRequestNotExistException(
             HttpServletRequest request, CFriendRequestNotExistException e) {
-        return responseService.getFailResult(
+        return ResponseFactory.createFailResult(
                 Integer.parseInt(getMessage("friendRequestNotExist.code")), getMessage("friendRequestNotExist.msg"));
     }
 
@@ -166,7 +168,7 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     protected CommonResult friendRequestOnGoingException(
             HttpServletRequest request, CFriendRequestOnGoingException e){
-        return responseService.getFailResult(
+        return ResponseFactory.createFailResult(
                 Integer.parseInt(getMessage("friendRequestOnGoing.code")), getMessage("friendRequestOnGoing.msg"));
     }
 
@@ -178,7 +180,7 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     protected CommonResult userNotFoundException(
             HttpServletRequest request, CFCMTokenNotFoundException e) {
-        return responseService.getFailResult(
+        return ResponseFactory.createFailResult(
                 Integer.parseInt(getMessage("FCMTokenNotFound.code")), getMessage("FCMTokenNotFound.msg"));
     }
 }
