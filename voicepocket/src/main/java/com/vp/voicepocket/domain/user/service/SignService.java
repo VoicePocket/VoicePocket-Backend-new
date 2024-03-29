@@ -59,7 +59,8 @@ public class SignService {
 
         if (refreshTokenRepository.findByKey(user.getId()).isPresent()) {
             RefreshToken refreshToken = refreshTokenRepository.findByKey(user.getId()).get();
-            refreshToken.updateToken(tokenDto.getRefreshToken());
+            refreshToken.updateToken(tokenDto.getRefreshToken(),
+                tokenDto.getRefreshTokenExpiryDate());
         } else {
             refreshTokenRepository.save(tokenDto.toEntity(user));
         }
@@ -90,11 +91,11 @@ public class SignService {
         // user pk로 유저 검색 / repo 에 저장된 Refresh Token 가져오기
         User user =
             userRepository
-                .findById(refreshTokenEntity.getKey())
+                .findById(refreshTokenEntity.getId())
                 .orElseThrow(CUserNotFoundException::new);
 
         // AccessToken, RefreshToken 토큰 재발급, 리프레쉬 토큰 저장
         return jwtProvider.reissueAccessToken(user.getId(), user.getRole().toString(),
-            refreshToken, 0L);
+            refreshToken, refreshTokenEntity.getExpiryDate());
     }
 }

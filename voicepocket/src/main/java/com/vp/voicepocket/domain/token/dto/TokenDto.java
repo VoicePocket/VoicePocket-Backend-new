@@ -24,8 +24,9 @@ public class TokenDto {
     // TODO: ??
     public RefreshToken toEntity(User user) {
         return RefreshToken.builder()
-            .key(user.getId())
-            .token(refreshToken)
+            .id(user.getId())
+            .refreshToken(refreshToken)
+            .expiryDate(refreshTokenExpiryDate)
             .build();
     }
 }
