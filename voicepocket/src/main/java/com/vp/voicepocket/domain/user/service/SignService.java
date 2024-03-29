@@ -57,8 +57,8 @@ public class SignService {
         // token 발급
         TokenDto tokenDto = jwtProvider.generateTokens(user.getId(), user.getRole().toString());
 
-        if (refreshTokenRepository.findByKey(user.getId()).isPresent()) {
-            RefreshToken refreshToken = refreshTokenRepository.findByKey(user.getId()).get();
+        if (refreshTokenRepository.findById(user.getId()).isPresent()) {
+            RefreshToken refreshToken = refreshTokenRepository.findById(user.getId()).get();
             refreshToken.updateToken(tokenDto.getRefreshToken(),
                 tokenDto.getRefreshTokenExpiryDate());
         } else {
@@ -85,7 +85,7 @@ public class SignService {
 
         // RefreshTokenRepository 에서 Username (pk) 가져오기
         String refreshToken = tokenRequestDto.getRefreshToken();
-        RefreshToken refreshTokenEntity = refreshTokenRepository.findByToken(refreshToken)
+        RefreshToken refreshTokenEntity = refreshTokenRepository.findByValue(refreshToken)
             .orElseThrow(CRefreshTokenException::new);
 
         // user pk로 유저 검색 / repo 에 저장된 Refresh Token 가져오기
