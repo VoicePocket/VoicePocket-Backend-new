@@ -1,6 +1,8 @@
 package com.vp.voicepocket.domain.token.entity;
 
 
+import com.vp.voicepocket.domain.token.exception.CRefreshTokenException;
+import java.util.Date;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
@@ -36,6 +38,12 @@ public class RefreshToken {  // 추후 expire 시간과 비교하여 만료시�
     public void updateToken(String refreshToken, Long expiryDate) {
         this.value = validateToken(refreshToken);
         this.expiryDate = validateExpiryDate(expiryDate);
+    }
+
+    public void validateRefreshToken(String refreshToken) {
+        if (!this.value.equals(refreshToken) || this.expiryDate < new Date().getTime()) {
+            throw new CRefreshTokenException();
+        }
     }
 
     private Long validateId(Long id) {

@@ -1,20 +1,16 @@
 package com.vp.voicepocket.domain.token.dto;
 
-import lombok.Builder;
+import io.swagger.v3.oas.annotations.media.Schema;
+import javax.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Getter
-@Setter
 @NoArgsConstructor
 public class TokenRequestDto {
-    String accessToken;
+
+    @Schema(title = "refreshToken", description = "리프레시 토큰", example = "sampleToken")
+    @NotBlank
     String refreshToken;
 
-    @Builder
-    public TokenRequestDto(String accessToken, String refreshToken) {
-        this.accessToken = accessToken;
-        this.refreshToken = refreshToken;
-    }
 }

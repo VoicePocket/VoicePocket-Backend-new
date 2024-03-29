@@ -5,7 +5,6 @@ import com.vp.voicepocket.domain.firebase.entity.FCMUserToken;
 import com.vp.voicepocket.domain.firebase.repository.FCMRepository;
 import com.vp.voicepocket.domain.token.config.JwtProvider;
 import com.vp.voicepocket.domain.token.dto.TokenDto;
-import com.vp.voicepocket.domain.token.dto.TokenRequestDto;
 import com.vp.voicepocket.domain.token.entity.RefreshToken;
 import com.vp.voicepocket.domain.token.exception.CRefreshTokenException;
 import com.vp.voicepocket.domain.token.repository.RefreshTokenRepository;
@@ -70,25 +69,26 @@ public class SignService {
     }
 
     @Transactional
-    public TokenDto reissue(TokenRequestDto tokenRequestDto) {
-        // 만료된 refresh token 인지 확인
-        if (!jwtProvider.validationToken(tokenRequestDto.getRefreshToken())) {
-            throw new CRefreshTokenException();
-        }
-
+    public TokenDto reissue(String accessToken, String refreshToken) {
+        accessToken = validateAccessToken(accessToken);
+        Long userId = Long.parseLong(
+            jwtProvider.parseAccessTokenWithOutExpiration(accessToken).getSubject());
         // RefreshTokenRepository 에서 Username (pk) 가져오기
-        String refreshToken = tokenRequestDto.getRefreshToken();
-        RefreshToken refreshTokenEntity = refreshTokenRepository.findByValue(refreshToken)
+        var token = refreshTokenRepository.findById(userId)
             .orElseThrow(CRefreshTokenException::new);
-
+        token.validateRefreshToken(refreshToken);
         // user pk로 유저 검색 / repo 에 저장된 Refresh Token 가져오기
-        User user =
-            userRepository
-                .findById(refreshTokenEntity.getId())
-                .orElseThrow(CUserNotFoundException::new);
-
+        User user = userRepository.findById(userId).orElseThrow(CUserNotFoundException::new);
         // AccessToken, RefreshToken 토큰 재발급, 리프레쉬 토큰 저장
-        return jwtProvider.reissueAccessToken(user.getId(), user.getRole().toString(),
-            refreshToken, refreshTokenEntity.getExpiryDate());
+        return jwtProvider.reissueAccessToken(user.getId(), user.getRole().toString(), refreshToken,
+            token.getExpiryDate());
+    }
+
+    private String validateAccessToken(String accessToken) {
+        if (accessToken == null || !accessToken.contains("Bearer")) {
+            throw new IllegalArgumentException("Invalid Token");
+        }
+        // "Bearer " 제거
+        return accessToken.substring(7);
     }
 }
