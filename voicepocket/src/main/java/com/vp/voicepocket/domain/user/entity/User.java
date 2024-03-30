@@ -2,6 +2,7 @@ package com.vp.voicepocket.domain.user.entity;
 
 import com.vp.voicepocket.domain.user.entity.enums.UserRole;
 import com.vp.voicepocket.domain.user.entity.vo.Email;
+import com.vp.voicepocket.domain.user.exception.CEmailLoginFailedException;
 import com.vp.voicepocket.global.common.BaseEntity;
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -21,6 +22,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 
 @Getter
@@ -69,6 +71,12 @@ public class User extends BaseEntity implements UserDetails {
 
     public void deleteUser() {
         this.deletedAt = LocalDateTime.now();
+    }
+
+    public void verifyPassword(PasswordEncoder passwordEncoder, String password) {
+        if (!passwordEncoder.matches(password, this.password)) {
+            throw new CEmailLoginFailedException();
+        }
     }
 
     @Override

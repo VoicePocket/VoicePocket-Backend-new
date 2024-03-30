@@ -1,28 +1,22 @@
 package com.vp.voicepocket.domain.token.dto;
 
-import com.vp.voicepocket.domain.token.entity.RefreshToken;
-import com.vp.voicepocket.domain.user.entity.User;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Getter
-@Setter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class TokenDto {
-    private String grantType;
-    private String accessToken;
-    private String refreshToken;
-    private Long accessTokenExpireDate;
 
-    public RefreshToken toEntity(User user){
-        return RefreshToken.builder()
-                .key(user.getId())
-                .token(refreshToken)
-                .build();
+    private final String grantType;
+    private final String accessToken;
+    private final String refreshToken;
+    private final Long refreshTokenExpiryDate;
+
+    @Builder
+    public TokenDto(String accessToken, String refreshToken, Long refreshTokenExpiryDate) {
+        this.grantType = "Bearer";
+        this.accessToken = accessToken;
+        this.refreshToken = refreshToken;
+        this.refreshTokenExpiryDate = refreshTokenExpiryDate;
     }
+
 }
